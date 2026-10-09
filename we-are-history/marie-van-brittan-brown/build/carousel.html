@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Marie Van Brittan Brown — We Are History</title>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<style>
+:root{
+  --charcoal:#1C1C1C; --parchment:#E7D9BC; --burgundy:#722F37; --gold:#C09A52;
+  --blue:#405B6B; --offwhite:#F5F0E6; --ink:#2B2622;
+  --serif:'Playfair Display',Georgia,serif; --sans:'Inter',system-ui,sans-serif; --mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#000}
+#canvas{position:relative;width:1080px;overflow:hidden;font-family:var(--sans)}
+#bg{position:absolute;inset:0}
+#stage{position:absolute;left:0;width:1080px;height:1350px}
+.abs{position:absolute}
+.dark{background:var(--charcoal);color:var(--offwhite)}
+.paper{background:var(--parchment);color:var(--charcoal)}
+.paper-tex{position:absolute;inset:0;opacity:.55;mix-blend-mode:multiply;
+  background:radial-gradient(ellipse at 50% 40%,rgba(255,250,235,.55),rgba(150,120,70,.28) 100%)}
+.grain{position:absolute;inset:0;opacity:.10;mix-blend-mode:multiply}
+/* chrome */
+.brand{position:absolute;left:96px;top:72px;font:500 24px/1 var(--mono);letter-spacing:.22em;display:flex;align-items:center;gap:16px}
+.brand .dots{display:flex;flex-direction:column;gap:4px}
+.brand .dots i{display:block;width:7px;height:7px;border-radius:50%;background:var(--gold)}
+.pager{position:absolute;right:96px;top:72px;font:500 24px/1 var(--mono);letter-spacing:.12em;opacity:.8}
+.source{position:absolute;left:96px;right:290px;bottom:64px;font:400 21px/1.35 var(--mono);opacity:.72}
+.swipe{position:absolute;right:96px;bottom:64px;font:500 22px/1 var(--mono);letter-spacing:.18em;color:var(--gold)}
+.reel .swipe{display:none}
+.tag{position:absolute;left:96px;top:118px;font:500 20px/1 var(--mono);letter-spacing:.16em;padding:10px 14px;border:1.5px solid var(--gold);color:var(--gold);background:rgba(28,28,28,.6)}
+/* type */
+.kicker{font:500 24px/1 var(--mono);letter-spacing:.2em;color:var(--gold);text-transform:uppercase}
+.paper .kicker{color:var(--burgundy)}
+h1{font:700 86px/1.04 var(--serif);letter-spacing:-.01em}
+h1 em{font-style:italic;font-weight:500;color:var(--gold)}
+.paper h1 em{color:var(--burgundy)}
+.body{font:400 35px/1.42 var(--sans)}
+.dark .body{color:var(--parchment)}
+.paper .body{color:#2f2a25}
+/* raster patent figures used as coloured ink masks */
+.ink{position:absolute;-webkit-mask-repeat:no-repeat;-webkit-mask-size:100% 100%;mask-repeat:no-repeat;mask-size:100% 100%}
+.label{font:500 23px/1.25 var(--mono);letter-spacing:.06em}
+.card{position:absolute;width:432px;height:194px;padding:18px 24px 0;background:rgba(245,240,230,.55);border:1.5px solid rgba(64,91,107,.35)}
+.card .rule{position:absolute;left:0;top:0;height:5px;background:var(--blue)}
+.card h3{font:700 38px/1 var(--serif);color:var(--blue);margin-bottom:10px}
+.card p{font:400 29px/1.32 var(--sans);color:#2f2a25}
+.cta{position:absolute;left:96px;right:96px;padding:26px 30px;background:var(--burgundy);color:var(--offwhite);font:500 31px/1.36 var(--sans)}
+.cta b{color:#f1d9a0;font-weight:600}
+</style>
+</head>
+<body>
+<div id="canvas"><div id="bg"></div><div id="stage"></div></div>
+<script>
+const Q=new URLSearchParams(location.search);
+const FMT=Q.get('fmt')||'feed';
+const W=1080,H=FMT==='reel'?1920:1350,OFF=FMT==='reel'?220:0;
+const canvas=document.getElementById('canvas'),bg=document.getElementById('bg'),stage=document.getElementById('stage');
+canvas.style.height=H+'px';stage.style.top=OFF+'px';
+
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const easeOut=t=>1-Math.pow(1-t,3);
+const pr=(t,a,b)=>ease(clamp((t-a)/(b-a)));
+const po=(t,a,b)=>easeOut(clamp((t-a)/(b-a)));
+const lerp=(a,b,k)=>a+(b-a)*k;
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+function rise(el,t,a,d=.9,dy=26){if(!el)return;const k=po(t,a,a+d);el.style.opacity=k;el.style.transform=`translateY(${(1-k)*dy}px)`}
+function show(el,k){el.style.opacity=k}
+function ink(name,x,y,w,h,color,id,extra=''){return `<div class="ink" id="${id||name}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${color};-webkit-mask-image:url(assets/${name}.png);mask-image:url(assets/${name}.png);${extra}"></div>`}
+// wipe reveal for drawings: clip from top to bottom, with slight soft edge via opacity
+function wipe(el,k,dir='down'){if(!el)return;const r=(1-k)*100;el.style.clipPath=dir==='down'?`inset(0 0 ${r}% 0)`:`inset(0 ${r}% 0 0)`;el.style.opacity=k>0?1:0}
+function dash(el,k){if(!el)return;const L=el.getTotalLength?el.getTotalLength():1000;el.style.strokeDasharray=L;el.style.strokeDashoffset=L*(1-k)}
+const GRAIN=`<svg class="grain" width="100%" height="100%"><filter id="gn"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .3  0 0 0 0 .25  0 0 0 0 .18  0 0 0 1 0"/></filter><rect width="100%" height="100%" filter="url(#gn)"/></svg>`;
+function chrome(n,theme,source,opts={}){
+  const brandColor=theme==='paper'?'var(--charcoal)':'var(--offwhite)';
+  return `<div class="brand" style="color:${brandColor}"><span class="dots"><i></i><i></i><i></i><i></i></span>WE ARE HISTORY</div>
+  <div class="pager">${String(n).padStart(2,'0')} / 07</div>
+  ${opts.tag?`<div class="tag">${opts.tag}</div>`:''}
+  <div class="source" style="${n===7?"right:96px":""}">${source}</div>
+  ${n<7?'<div class="swipe">SWIPE →</div>':''}`;
+}
+
+/* ============ SLIDES ============ */
+const S={};
+
+/* ---- 1 · HOOK ---- */
+S[1]={dur:7,theme:'dark',build(){
+  bg.className='dark';
+  bg.innerHTML=`<div class="abs" id="s1glow" style="inset:0;background:radial-gradient(ellipse 60% 45% at 50% ${(OFF+440)/H*100}%,rgba(192,154,82,.16),transparent 70%)"></div>${GRAIN}`;
+  // fig2 lens centres (fractions of image): measured from patent Fig. 2
+  const fw=420,fh=Math.round(420*938/633),fx=330,fy=150;
+  const L=[[.866,.386],[.859,.543],[.845,.69],[.817,.853]];
+  stage.innerHTML=chrome(1,'dark','U.S. Patent 3,482,037 (filed 1966), Fig. 2 — the entrance door with four lens ports')+`
+  <div id="phone" class="abs" style="left:375px;top:170px;width:330px;height:600px;border:5px solid #9a958c;border-radius:48px;background:#111;overflow:hidden">
+    <div class="abs" style="left:14px;top:14px;right:14px;bottom:14px;border-radius:34px;overflow:hidden;background:radial-gradient(circle at 50% 45%,#56707e,#22313a 75%)">
+      <svg class="abs" viewBox="0 0 300 570" style="inset:0;width:100%;height:100%">
+        <path d="M70 560 L95 120 Q150 95 205 120 L230 560" fill="none" stroke="#9fb3bd" stroke-width="5" opacity=".7"/>
+        <path d="M60 560 Q150 520 240 560" fill="none" stroke="#9fb3bd" stroke-width="4" opacity=".5"/>
+        <circle cx="150" cy="300" r="250" fill="none" stroke="#0b1418" stroke-width="80" opacity=".5"/>
+      </svg>
+      <div class="abs" style="left:20px;top:22px;font:500 18px/1 var(--mono);letter-spacing:.14em;color:#F5F0E6"><span style="color:#d9534f">●</span> LIVE · FRONT DOOR</div>
+      <div class="abs" style="left:0;right:0;bottom:30px;text-align:center;font:500 17px/1 var(--mono);letter-spacing:.12em;color:#cfd8dc">TODAY</div>
+    </div>
+  </div>
+  ${ink('fig2',fx,fy,fw,fh,'var(--parchment)','f2')}
+  <svg class="abs" style="left:${fx}px;top:${fy}px" width="${fw}" height="${fh}">
+    ${L.map(([x,y],i)=>`<circle class="lens" cx="${x*fw}" cy="${y*fh}" r="${.085*fw}" fill="none" stroke="#C09A52" stroke-width="5"/>`).join('')}
+  </svg>
+  <div id="yr" class="abs label" style="left:${fx+fw+18}px;top:${fy+fh*.36}px;color:var(--gold)">1966</div>
+  <div class="abs" style="left:96px;right:96px;top:790px">
+    <div id="t1k" class="kicker" style="margin-bottom:22px">Jamaica, Queens · New York</div>
+    <h1 id="t1h">A nurse in Queens designed <em>this</em> in 1966.</h1>
+    <p id="t1b" class="body" style="margin-top:26px">Decades before smart doorbells, Marie Van Brittan Brown drew a door that could show you who was outside.</p>
+  </div>`;
+},seek(t){
+  const out=pr(t,1.7,2.7);
+  const ph=$('#phone');ph.style.opacity=1-out;ph.style.transform=`scale(${1-.12*out})`;
+  wipe($('#f2'),pr(t,2.1,3.9));
+  $$('.lens').forEach((c,i)=>{const a=3.8+i*.42;const k=po(t,a,a+.5);c.style.opacity=k;c.setAttribute('stroke-width',lerp(10,5,k))});
+  rise($('#yr'),t,5.6,.6,10);
+  rise($('#t1k'),t,.2);rise($('#t1h'),t,.35);rise($('#t1b'),t,.8);
+}};
+
+/* ---- 2 · THE PROBLEM (illustrative reconstruction) ---- */
+S[2]={dur:7,theme:'dark',build(){
+  bg.className='dark';
+  // Full-bleed illustrated scene; extends naturally in the 9:16 frame
+  bg.innerHTML=`<div id="scene" class="abs" style="inset:0;transform-origin:50% ${(OFF+420)/H*100}%">
+  <svg width="1080" height="${H}" viewBox="0 ${-OFF} 1080 ${H}" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <radialGradient id="lamp" cx="0.05" cy="0.42" r="0.8"><stop offset="0" stop-color="#b9772f" stop-opacity=".55"/><stop offset=".45" stop-color="#722F37" stop-opacity=".22"/><stop offset="1" stop-color="#1C1C1C" stop-opacity="0"/></radialGradient>
+      <linearGradient id="wood" x1="0" x2="1"><stop offset="0" stop-color="#4a3328"/><stop offset=".5" stop-color="#3a281f"/><stop offset="1" stop-color="#2a1d17"/></linearGradient>
+      <linearGradient id="gap" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#e9c37a" stop-opacity=".9"/><stop offset="1" stop-color="#e9c37a" stop-opacity="0"/></linearGradient>
+      <radialGradient id="brass" cx=".35" cy=".35"><stop offset="0" stop-color="#f0d28f"/><stop offset=".6" stop-color="#b88a3e"/><stop offset="1" stop-color="#5e4520"/></radialGradient>
+    </defs>
+    <rect x="-200" y="-600" width="1480" height="2700" fill="#211d1b"/>
+    <!-- wallpaper stripe, period-appropriate -->
+    <g opacity=".07">${Array.from({length:40},(_,i)=>`<rect x="${-200+i*38}" y="-600" width="14" height="2700" fill="#C09A52"/>`).join('')}</g>
+    <rect x="-200" y="-600" width="1480" height="2700" fill="url(#lamp)"/>
+    <!-- door frame & door -->
+    <rect x="278" y="60" width="524" height="1170" fill="#14110f"/>
+    <rect x="300" y="80" width="480" height="1150" fill="url(#wood)"/>
+    <g fill="none" stroke="#1d1410" stroke-width="6" opacity=".8">
+      <rect x="350" y="140" width="380" height="380"/><rect x="350" y="580" width="380" height="580"/>
+    </g>
+    <g fill="none" stroke="#6b4b39" stroke-width="2" opacity=".5">
+      <rect x="356" y="146" width="368" height="368"/><rect x="356" y="586" width="368" height="568"/>
+    </g>
+    <!-- peephole -->
+    <circle cx="540" cy="430" r="17" fill="url(#brass)"/><circle cx="540" cy="430" r="7" fill="#0d0b0a"/>
+    <!-- chain lock -->
+    <rect x="690" y="500" width="40" height="16" rx="4" fill="url(#brass)"/>
+    <path d="M700 508 q-30 40 -60 20" fill="none" stroke="#c9a25a" stroke-width="5" stroke-dasharray="7 4"/>
+    <rect x="626" y="520" width="22" height="12" rx="3" fill="url(#brass)"/>
+    <!-- knob + deadbolt -->
+    <circle cx="726" cy="700" r="24" fill="url(#brass)"/><circle cx="726" cy="620" r="15" fill="url(#brass)"/>
+    <!-- light under the door from the hallway -->
+    <rect x="300" y="1222" width="480" height="8" fill="#f1cf86"/>
+    <path d="M300 1230 L780 1230 L900 1400 L180 1400 Z" fill="url(#gap)" opacity=".35"/>
+    <!-- floor -->
+    <rect x="-200" y="1230" width="1480" height="900" fill="#151210"/>
+    <path d="M300 1232 L780 1232 L900 1400 L180 1400 Z" fill="#e9c37a" opacity=".08"/>
+    <!-- coat hook with folded nurse's cap (generic period object) -->
+    <rect x="880" y="360" width="70" height="14" rx="4" fill="#5e4520"/>
+    <path d="M915 372 q0 26 -14 34" fill="none" stroke="#9c7a3c" stroke-width="5"/>
+    <path d="M868 410 L962 410 L950 446 L880 446 Z" fill="#e8e2d4"/><path d="M880 410 L915 392 L950 410 Z" fill="#f5f0e6"/>
+    <rect x="888" y="425" width="54" height="5" fill="#2b2622" opacity=".6"/>
+    <!-- side table + rotary phone, 1960s -->
+    <rect x="60" y="860" width="190" height="16" fill="#3a281f"/><rect x="74" y="876" width="12" height="354" fill="#2a1d17"/><rect x="224" y="876" width="12" height="354" fill="#2a1d17"/>
+    <path d="M95 860 q0 -46 60 -46 q60 0 60 46 Z" fill="#1a1715"/><ellipse cx="155" cy="826" rx="70" ry="14" fill="#262220"/>
+    <circle cx="155" cy="842" r="20" fill="#3b3734"/>
+  </svg></div>
+  <div class="abs" style="left:0;right:0;bottom:0;height:${OFF+700}px;background:linear-gradient(to top,rgba(28,28,28,.97) ${(OFF+330)/(OFF+700)*100}%,rgba(28,28,28,0))"></div>
+  <div class="abs" style="left:0;right:0;top:0;height:${OFF+220}px;background:linear-gradient(to bottom,rgba(28,28,28,.85),rgba(28,28,28,0))"></div>`;
+  stage.innerHTML=chrome(2,'dark','Illustrative reconstruction of a 1960s apartment entrance — not a photograph of the Browns’ home.',{tag:'ILLUSTRATIVE RECONSTRUCTION'})+`
+  <div class="abs" style="left:96px;right:96px;top:765px">
+    <h1 id="t2h" style="font-size:80px">Late shifts. A locked door. <em>No way to see who was knocking.</em></h1>
+    <p id="t2b" class="body" style="margin-top:26px">Marie worked as a nurse, often on irregular hours. She wanted to see—and speak to—whoever was outside without opening the door.</p>
+  </div>`;
+},seek(t){
+  const k=t/this.dur;$('#scene').style.transform=`scale(${1+.075*ease(k)})`;
+  rise($('#t2h'),t,.5,1.1);rise($('#t2b'),t,1.5,1);
+}};
+
+/* ---- 3 · THE IDEA ---- */
+S[3]={dur:7.5,theme:'paper',build(){
+  bg.className='paper';bg.innerHTML=`<div class="paper-tex"></div>${GRAIN}`;
+  const fw=360,fh=Math.round(360*938/633);
+  // explanatory cutaway: local coords 444 x 620
+  const ports=[120,250,380,510];
+  stage.innerHTML=chrome(3,'paper','Left: Patent Fig. 2 (archival) · Right: explanatory diagram')+`
+  <div class="abs" style="left:96px;right:96px;top:150px">
+    <div id="t3k" class="kicker" style="margin-bottom:20px">The idea</div>
+    <h1 id="t3h">Four peepholes. <em>One camera that moved.</em></h1>
+    <p id="t3b" class="body" style="margin-top:22px">A motor-driven camera slid up and down behind the door, lining up with whichever lens gave the best view of the visitor.</p>
+  </div>
+  ${ink('fig2',96,600,fw,fh,'var(--ink)','f2b')}
+  <div id="f2cap" class="abs label" style="left:96px;top:${600+fh+10}px;color:var(--burgundy)">FIG. 2 · DOOR FRONT</div>
+  <svg id="cut" class="abs" style="left:560px;top:590px" width="400" height="568" viewBox="0 0 444 630">
+    <defs><linearGradient id="beam" x1="0" x2="1"><stop offset="0" stop-color="#C09A52" stop-opacity=".85"/><stop offset="1" stop-color="#C09A52" stop-opacity="0"/></linearGradient></defs>
+    <text x="40" y="22" font-family="IBM Plex Mono" font-size="21" fill="#405B6B" letter-spacing="2">INSIDE</text>
+    <text x="300" y="22" font-family="IBM Plex Mono" font-size="21" fill="#405B6B" letter-spacing="2">OUTSIDE</text>
+    <!-- rail -->
+    <rect x="150" y="50" width="8" height="550" fill="#405B6B" opacity=".55"/>
+    <g id="rack" stroke="#405B6B" stroke-width="2" opacity=".55">${Array.from({length:46},(_,i)=>`<line x1="158" y1="${56+i*12}" x2="166" y2="${56+i*12}"/>`).join('')}</g>
+    <!-- door slab -->
+    <rect x="236" y="40" width="44" height="570" fill="#cdbb95" stroke="#2B2622" stroke-width="3"/>
+    <g stroke="#2B2622" stroke-width="1.2" opacity=".35">${Array.from({length:28},(_,i)=>`<line x1="236" y1="${60+i*20}" x2="280" y2="${40+i*20}"/>`).join('')}</g>
+    ${ports.map((y,i)=>`<g class="port"><rect x="236" y="${y-22}" width="44" height="44" fill="#E7D9BC" stroke="#2B2622" stroke-width="3"/><circle cx="280" cy="${y}" r="15" fill="#9fb3bd" stroke="#2B2622" stroke-width="3"/></g>
+      <rect class="plate" data-y="${y}" x="226" y="${y-24}" width="9" height="48" fill="#2B2622"/>
+      <polygon class="beam" points="282,${y} 444,${y-70} 444,${y+70}" fill="url(#beam)" opacity="0"/>`).join('')}
+    <!-- camera cabinet -->
+    <g id="cam">
+      <rect x="120" y="-48" width="104" height="96" rx="6" fill="#405B6B"/>
+      <rect x="224" y="-14" width="16" height="28" fill="#2B2622"/>
+      <circle cx="160" cy="0" r="22" fill="none" stroke="#E7D9BC" stroke-width="4"/>
+      <circle cx="160" cy="0" r="8" fill="#E7D9BC"/>
+      <line x1="140" y1="-48" x2="128" y2="-70" stroke="#2B2622" stroke-width="3"/><circle cx="127" cy="-73" r="4" fill="#2B2622"/>
+    </g>
+    <g id="arrows" fill="#722F37"><path d="M98 -26 l-12 18 h24z"/><path d="M98 26 l-12 -18 h24z"/></g>
+  </svg>
+  <div id="c1" class="abs label" style="left:560px;top:1160px;width:424px;font-size:20px;color:var(--blue)">CAMERA RIDES A RACK GEAR; LENS COVERS SWING ASIDE</div>`;
+  this.ports=ports;
+},seek(t){
+  rise($('#t3k'),t,.15);rise($('#t3h'),t,.3);rise($('#t3b'),t,.75);
+  wipe($('#f2b'),pr(t,.6,2.2));rise($('#f2cap'),t,2,.6,8);
+  const cut=$('#cut');cut.style.opacity=pr(t,1.2,2);rise($('#c1'),t,2.2,.6,8);
+  // camera path: port 1 → 4 → 2, dwell at each
+  const P=this.ports,keys=[[0,P[0]],[2.4,P[0]],[3.6,P[1]],[3.9,P[1]],[5.0,P[3]],[5.6,P[3]],[6.6,P[1]],[9,P[1]]];
+  let y=P[0];for(let i=0;i<keys.length-1;i++){const[a,ya]=keys[i],[b,yb]=keys[i+1];if(t>=a&&t<=b){y=lerp(ya,yb,ease((t-a)/(b-a)));break}if(t>b)y=yb}
+  $('#cam').setAttribute('transform',`translate(0 ${y})`);
+  const moving=keys.some((k,i)=>i<keys.length-1&&t>k[0]&&t<keys[i+1][0]&&k[1]!==keys[i+1][1]);
+  $('#arrows').setAttribute('transform',`translate(0 ${y})`);$('#arrows').style.opacity=moving?1:0;
+  $$('.plate').forEach(p=>{const py=+p.dataset.y,d=Math.abs(py-y);const open=clamp(1-(d-10)/40);p.setAttribute('transform',`rotate(${-80*open} 230 ${py-24})`)});
+  $$('.beam').forEach((b,i)=>{const d=Math.abs(P[i]-y);b.setAttribute('opacity',(t>2?1:0)*clamp(1-d/18)*.9)});
+}};
+
+/* ---- 4 · THE SYSTEM ---- */
+S[4]={dur:8,theme:'paper',build(){
+  bg.className='paper';bg.innerHTML=`<div class="paper-tex"></div>${GRAIN}`;
+  const fw=540,fh=Math.round(540*627/1039),fx=270,fy=420;
+  const sx=fx+fw*.205,sy=fy+fh*.075,sw=fw*.535,sh=fh*.605;
+  const cards=[['See','Camera video was sent by radio to a screen in another room.'],['Speak','Microphones and speakers at the door and at the screen.'],['Unlock','A button released a radio-controlled door lock.'],['Get help','An alarm could alert a guard, police officer or watchman.']];
+  stage.innerHTML=chrome(4,'paper','U.S. Patent 3,482,037, Fig. 6 and specification.')+`
+  <div class="abs" style="left:96px;right:96px;top:150px">
+    <div id="t4k" class="kicker" style="margin-bottom:20px">The complete system</div>
+    <h1 id="t4h">See. Speak. Unlock. <em>Call for help.</em></h1>
+  </div>
+  <div id="screen" class="abs" style="left:${sx}px;top:${sy}px;width:${sw}px;height:${sh}px;overflow:hidden;background:radial-gradient(ellipse at 50% 45%,#7f9aa8,#405B6B 60%,#1f2e36)">
+    <svg class="abs" viewBox="0 0 100 70" preserveAspectRatio="none" style="inset:0;width:100%;height:100%">
+      <path d="M30 70 Q30 50 50 48 Q70 50 70 70Z" fill="#dfe6e8" opacity=".55"/><ellipse cx="50" cy="34" rx="11" ry="13" fill="#dfe6e8" opacity=".55"/>
+    </svg>
+    <div class="abs" style="inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 2px,transparent 2px 5px)"></div>
+  </div>
+  ${ink('fig6',fx,fy,fw,fh,'var(--ink)','f6')}
+  <svg class="abs" style="left:${fx+fw}px;top:${sy}px" width="140" height="${sh}">
+    ${[0,1,2].map(i=>`<path class="wave" d="M${20+i*30} ${sh/2-30-i*16} q${18+i*6} ${30+i*16} 0 ${60+i*32}" fill="none" stroke="#405B6B" stroke-width="5" stroke-linecap="round"/>`).join('')}
+  </svg>
+  <div id="f6cap" class="abs label" style="left:96px;top:${fy+fh+10}px;width:888px;text-align:center;color:var(--burgundy)">FIG. 6 · THE OCCUPANT’S CONTROL UNIT</div>
+  ${cards.map((c,i)=>`<div class="card" id="card${i}" style="left:${96+(i%2)*456}px;top:${822+Math.floor(i/2)*208}px"><div class="rule"></div><h3>${c[0]}</h3><p>${c[1]}</p></div>`).join('')}`;
+},seek(t){
+  rise($('#t4k'),t,.15);rise($('#t4h'),t,.3);
+  wipe($('#f6'),pr(t,.5,1.9));rise($('#f6cap'),t,1.6,.6,8);
+  const sc=$('#screen');const on=pr(t,1.9,2.8);sc.style.opacity=on;sc.style.filter=`brightness(${lerp(2.2,1,on)})`;
+  $$('.wave').forEach((w,i)=>{const ph=((t-2.6-i*.25)%1.6+1.6)%1.6;w.style.opacity=t<2.6?0:clamp(1-ph/1.6)*.85});
+  for(let i=0;i<4;i++){const a=2.9+i*.75;rise($('#card'+i),t,a,.7,18);const r=$('#card'+i+' .rule');r.style.width=(po(t,a+.1,a+.9)*100)+'%'}
+}};
+
+/* ---- 5 · THE PATENT ---- */
+S[5]={dur:7.5,theme:'paper',build(){
+  bg.className='paper';bg.innerHTML=`<div class="paper-tex"></div>${GRAIN}`;
+  const hw=888,hh=Math.round(888*282/2000),sw=560,sh=Math.round(560*264/1543);
+  stage.innerHTML=chrome(5,'paper','U.S. Patent 3,482,037: filing date, issue date, title and inventors as printed on the patent.')+`
+  <div class="abs" style="left:96px;right:96px;top:150px">
+    <div id="t5k" class="kicker" style="margin-bottom:20px">On the record</div>
+    <h1 id="t5h" style="font-size:74px;white-space:nowrap">Filed 1966. <em>Patented 1969.</em></h1>
+  </div>
+  ${ink('header',96,388,hw,hh,'var(--ink)','hdr')}
+  <svg id="tl" class="abs" style="left:96px;top:560px" width="888" height="200">
+    <line id="tline" x1="30" y1="40" x2="858" y2="40" stroke="#722F37" stroke-width="5"/>
+    <circle id="n1" cx="30" cy="40" r="16" fill="#722F37"/><circle id="n2" cx="858" cy="40" r="16" fill="#722F37"/>
+    <text id="mid" x="444" y="26" text-anchor="middle" font-family="IBM Plex Mono" font-size="22" fill="#405B6B" letter-spacing="2">3 YEARS, 4 MONTHS</text>
+  </svg>
+  <div id="d1" class="abs" style="left:96px;top:625px"><div style="font:700 50px/1 var(--serif)">Aug. 1, 1966</div><div class="label" style="margin-top:10px;color:#405B6B">APPLICATION FILED</div></div>
+  <div id="d2" class="abs" style="right:96px;top:625px;text-align:right"><div style="font:700 50px/1 var(--serif)">Dec. 2, 1969</div><div class="label" style="margin-top:10px;color:#405B6B">PATENT GRANTED</div></div>
+  <div id="pn" class="abs" style="left:96px;right:96px;top:780px">
+    <div style="font:700 62px/1 var(--serif);color:var(--burgundy)">U.S. Patent No. 3,482,037</div>
+    <div style="font:italic 500 33px/1.3 var(--serif);margin-top:14px">“Home Security System Utilizing Television Surveillance”</div>
+  </div>
+  ${ink('sig',96,945,sw,sh,'var(--ink)','sig')}
+  <div id="sigcap" class="abs label" style="left:${96+sw+24}px;top:965px;width:300px;color:var(--burgundy)">INVENTORS’ NAMES AS LETTERED ON THE DRAWINGS</div>
+  <div id="inv1" class="abs" style="left:96px;top:1100px;width:430px"><div class="label" style="color:var(--burgundy);font-weight:500">MARIE VAN BRITTAN BROWN</div><div style="font:400 29px/1.3 var(--sans);margin-top:8px">Lead inventor · listed first · nurse</div></div>
+  <div id="inv2" class="abs" style="left:552px;top:1100px;width:432px"><div class="label" style="color:var(--burgundy);font-weight:500">ALBERT L. BROWN</div><div style="font:400 29px/1.3 var(--sans);margin-top:8px">Co-inventor · electronics technician</div></div>`;
+},seek(t){
+  rise($('#t5k'),t,.15);rise($('#t5h'),t,.3);
+  wipe($('#hdr'),pr(t,.6,1.6),'right');
+  const n1=po(t,1.5,1.9);$('#n1').setAttribute('r',16*n1);rise($('#d1'),t,1.6,.6,10);
+  const L=$('#tline');L.setAttribute('x2',30+828*pr(t,1.9,3.3));
+  const n2=po(t,3.2,3.6);$('#n2').setAttribute('r',16*n2);rise($('#d2'),t,3.3,.6,10);
+  $('#mid').style.opacity=pr(t,3.4,4);
+  rise($('#pn'),t,3.9,.8);
+  wipe($('#sig'),pr(t,4.6,5.8),'right');rise($('#sigcap'),t,5.4,.6,8);
+  rise($('#inv1'),t,5.6,.7,12);rise($('#inv2'),t,5.9,.7,12);
+}};
+
+/* ---- 6 · AHEAD OF ITS TIME ---- */
+S[6]={dur:7,theme:'dark',build(){
+  bg.className='dark';
+  bg.innerHTML=`<div id="spot" class="abs" style="inset:0;background:radial-gradient(ellipse 55% 38% at 50% ${(OFF+420)/H*100}%,rgba(192,154,82,.30),rgba(114,47,55,.10) 55%,transparent 80%)"></div>${GRAIN}`;
+  const cw=760,ch=Math.round(760*1268/2000)+60;
+  stage.innerHTML=chrome(6,'dark','Drawing: U.S. Patent 3,482,037, Fig. 7 (system diagram). Production history: Smithsonian Magazine; Lemelson-MIT.')+`
+  <div id="sheet" class="abs" style="left:${(1080-cw)/2}px;top:170px;width:${cw}px;height:${ch}px;background:var(--parchment);box-shadow:0 30px 60px rgba(0,0,0,.6);transform-origin:50% 50%">
+    <div class="paper-tex"></div>
+    ${ink('fig7',30,30,cw-60,ch-60,'var(--ink)','f7')}
+  </div>
+  <div class="abs" style="left:96px;right:96px;top:760px">
+    <div id="t6k" class="kicker" style="margin-bottom:20px">Ahead of its time</div>
+    <h1 id="t6h">Patented—<em>but never mass-produced.</em></h1>
+    <p id="t6b" class="body" style="margin-top:24px">The Browns’ complete system was not widely manufactured during Marie’s lifetime. Video security would take decades to reach ordinary front doors.</p>
+  </div>`;
+},seek(t){
+  const k=t/this.dur;const sh=$('#sheet');
+  sh.style.opacity=pr(t,.1,1.2);sh.style.transform=`rotate(${lerp(-4,-2,ease(k))}deg) scale(${lerp(1.04,1,ease(k))})`;
+  wipe($('#f7'),pr(t,.5,2.3),'right');
+  $('#spot').style.opacity=lerp(.6,1,pr(t,0,2));
+  rise($('#t6k'),t,1.4);rise($('#t6h'),t,1.6);rise($('#t6b'),t,2.4);
+}};
+
+/* ---- 7 · LEGACY + CTA ---- */
+S[7]={dur:8,theme:'dark',build(){
+  bg.className='dark';
+  bg.innerHTML=`<div class="abs" style="inset:0;background:radial-gradient(ellipse 60% 35% at 50% ${(OFF+380)/H*100}%,rgba(192,154,82,.16),transparent 75%)"></div>${GRAIN}`;
+  const fh=440,fw=Math.round(440*633/938),fx=170,fy=150;
+  const L=[[.866,.386],[.859,.543],[.845,.69],[.817,.853]];
+  stage.innerHTML=chrome(7,'dark','Patent drawing: U.S. Patent 3,482,037, Fig. 2. Doorbell: generic modern silhouette. Legacy: Smithsonian Magazine; Lemelson-MIT.')+`
+  ${ink('fig2',fx,fy,fw,fh,'var(--parchment)','f2c')}
+  <svg class="abs" style="left:0;top:0" width="1080" height="640">
+    ${L.map(([x,y],i)=>`<circle class="l7" cx="${fx+x*fw}" cy="${fy+y*fh}" r="${.085*fw}" fill="none" stroke="#C09A52" stroke-width="4"/>`).join('')}
+    <path id="link" d="M${fx+.86*fw+30} ${fy+.6*fh} C 560 ${fy+.6*fh}, 600 ${fy+.6*fh}, 700 ${fy+.6*fh}" fill="none" stroke="#C09A52" stroke-width="3" stroke-dasharray="10 9"/>
+    <g id="bell" transform="translate(760 ${fy+30})">
+      <rect id="bellbody" x="0" y="0" width="150" height="380" rx="58" fill="none" stroke="#F5F0E6" stroke-width="6"/>
+      <circle id="belllens" cx="75" cy="92" r="40" fill="none" stroke="#C09A52" stroke-width="6"/>
+      <circle id="belllens2" cx="75" cy="92" r="14" fill="#C09A52"/>
+      <circle id="bellbtn" cx="75" cy="270" r="44" fill="none" stroke="#F5F0E6" stroke-width="6"/>
+    </g>
+  </svg>
+  <div id="cap1" class="abs label" style="left:${fx-20}px;top:${fy+fh+14}px;width:${fw+40}px;text-align:center;color:var(--gold)">1969 · PATENT DRAWING</div>
+  <div id="cap2" class="abs label" style="left:700px;top:${fy+fh+14}px;width:270px;text-align:center;color:var(--gold)">TODAY · VIDEO DOORBELL</div>
+  <div class="abs" style="left:96px;right:96px;top:668px">
+    <h1 id="t7h" style="font-size:74px">Her design pointed to <em>the doorbell cameras of today.</em></h1>
+    <p id="t7b" class="body" style="margin-top:20px;font-size:31px">Widely recognized as a predecessor of modern video doorbells and home-security systems.</p>
+    <div id="t7n" class="kicker" style="margin-top:22px">Marie Van Brittan Brown · 1922–1999</div>
+  </div>
+  <div id="cta" class="cta" style="top:1032px">Save and share Marie Van Brittan Brown’s story—and follow <b>@warehistory32</b> for more history we should all know.</div>`;
+},seek(t){
+  wipe($('#f2c'),pr(t,.2,1.6));
+  $$('.l7').forEach((c,i)=>{c.style.opacity=po(t,1.3+i*.2,1.7+i*.2)});
+  rise($('#cap1'),t,1.6,.6,8);
+  dash($('#link'),pr(t,2.3,3.2));
+  ['#bellbody','#bellbtn','#belllens'].forEach((s,i)=>dash($(s),pr(t,2.9+i*.25,3.9+i*.25)));
+  $('#belllens2').style.opacity=po(t,3.9,4.3);
+  // after the redraw, the four lens rings ease toward the single lens to show lineage
+  rise($('#cap2'),t,4,.6,8);
+  rise($('#t7h'),t,.4);rise($('#t7b'),t,1);rise($('#t7n'),t,1.4);rise($('#cta'),t,4.6,.8,16);
+}};
+
+let CUR=null;
+window.load=async function(n){CUR=S[n];CUR.build();canvas.className=FMT+' '+CUR.theme;await document.fonts.ready;
+  const urls=[...new Set([...document.querySelectorAll('.ink')].map(e=>e.style.maskImage||e.style.webkitMaskImage))].map(u=>u.slice(5,-2));
+  await Promise.all(urls.map(u=>new Promise(r=>{const i=new Image();i.onload=i.onerror=r;i.src=u})));
+  return CUR.dur};
+window.seek=t=>CUR.seek(t);
+window.SLIDES=S;
+if(Q.get('s')){load(+Q.get('s')).then(d=>seek(Q.has('t')?+Q.get('t'):d))}
+</script>
+</body>
+</html>

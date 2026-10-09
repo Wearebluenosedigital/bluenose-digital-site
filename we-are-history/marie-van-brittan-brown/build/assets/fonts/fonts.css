@@ -1,0 +1,35 @@
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url(nuFRD-vYSZviVYUb_rj3ij__anPXDTnCjmHKM4nYO7KN_pqTbtM.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKd3vUDV.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKeiukDV.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(-F63fjptAgt5VM-kVkqdyU8n5i0.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(-F6qfjptAgt5VM-kVkqdyU8n3twJ8lI.woff2) format('woff2');
+}
