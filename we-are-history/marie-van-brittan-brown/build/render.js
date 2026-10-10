@@ -12,6 +12,8 @@ const FPS = 30;
 const ROOT = path.resolve(__dirname, '..');
 const OUT = { feed: path.join(ROOT, 'carousel-4x5'), reel: path.join(ROOT, 'reel-9x16') };
 const FRAMES = path.join(__dirname, 'frames');
+const DURS = process.env.DURS ? JSON.parse(process.env.DURS) : {};
+const SUB = process.env.OUTSUB || 'mp4';
 
 (async () => {
   const http = require('http');
@@ -25,11 +27,12 @@ const FRAMES = path.join(__dirname, 'frames');
   for (const fmt of FMTS) {
     const H = fmt === 'reel' ? 1920 : 1350;
     const page = await browser.newPage({ viewport: { width: 1080, height: H }, deviceScaleFactor: 1 });
-    const outDir = OUT[fmt] + (MODE === 'stills' ? '' : '/mp4');
+    const outDir = OUT[fmt] + (MODE === 'stills' ? '' : '/' + SUB);
     fs.mkdirSync(outDir, { recursive: true });
     for (const n of SLIDES) {
       await page.goto('http://127.0.0.1:8765/carousel.html?fmt=' + fmt);
-      const dur = await page.evaluate(n => window.load(n), n);
+      const dur = DURS[n] || await page.evaluate(n => window.load(n), n);
+      if (DURS[n]) await page.evaluate(n => window.load(n), n);
       const el = await page.$('#canvas');
       const name = 'slide-' + String(n).padStart(2, '0');
       if (MODE === 'stills') {
