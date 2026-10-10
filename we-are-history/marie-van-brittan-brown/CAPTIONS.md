@@ -16,7 +16,7 @@ Their complete system was never widely manufactured during her lifetime. Today, 
 
 Had you heard of Marie Van Brittan Brown before today? Who else belongs in the story of everyday technology?
 
-Patent drawings: U.S. Patent 3,482,037 (USPTO). Slide 2 is an illustrative reconstruction, not a photograph.
+Patent drawings: U.S. Patent 3,482,037 (USPTO). Slide 2 is an AI-generated illustrative reconstruction, not a photograph.
 
 #WeAreHistory #MarieVanBrittanBrown #BlackHistory #WomenInSTEM #WomenInventors #BlackInventors #InventionHistory #HistoryOfTechnology #Queens #HiddenHistory
 
@@ -44,6 +44,6 @@ She didn't invent cameras, intercoms or alarms. Her contribution was bringing th
 
 Did you learn about her in school? Tell us in the comments, and tag a teacher, student or inventor who should know her name.
 
-Sources: U.S. Patent 3,482,037; Smithsonian Magazine; Lemelson-MIT. Patent drawings courtesy of the USPTO. Slide 2 is an illustrative reconstruction, not a photograph.
+Sources: U.S. Patent 3,482,037; Smithsonian Magazine; Lemelson-MIT. Patent drawings courtesy of the USPTO. Slide 2 is an AI-generated illustrative reconstruction, not a photograph.
 
 Save and share Marie Van Brittan Brown’s story—and follow @warehistory32 for more history we should all know.
